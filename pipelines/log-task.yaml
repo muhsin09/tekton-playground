@@ -1,0 +1,37 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: logger
+spec:
+  params:
+    - name: text
+      type: string
+  steps:
+    - name: log
+      image: registry.access.redhat.com/ubi8/ubi-minimal
+      script: |
+        DATE=$(date +%d/%m/%Y\ %T)
+        echo [$DATE] - $(params.text)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: task-reuse
+spec:
+  tasks:
+    - name: say-hello
+      params:
+        - name: text
+          value: "Hello"
+      taskRef:
+        name: logger
+    - name: log-something
+      params:
+        - name: text
+          value: "Something else being logged"
+      taskRef:
+        name: logger
+
+# $ kubectl apply -f ./log-task.yaml
+# $ tkn pipeline start task-reuse --showlog
+# hangi sırayla çalışır?

@@ -1,0 +1,8 @@
+# to install pipelines, triggers and dashboard (use profile 'all')
+$ kubectl apply -f https://storage.googleapis.com/tekton-releases/operator/latest/release.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/tektoncd/operator/main/config/crs/kubernetes/config/all/operator_v1alpha1_config_cr.yaml
+$ kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/release.yaml
+kubectl --namespace tekton-pipelines port-forward svc/tekton-dashboard 9097:9097
+
+// tekton cli installation
+$ brew install tektoncd-cli

@@ -1,0 +1,148 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clone
+spec:
+  params:
+    - name: repo
+      type: string
+      description: Git repository to be cloned
+      default: https://github.com/muhsin09/func
+  workspaces:
+    - name: source
+  steps:
+    - name: clone
+      image: alpine/git
+      workingDir: $(workspaces.source.path)
+      command:
+        - /bin/sh
+      args:
+        - -c
+        - git clone --depth 1  $(params.repo) ./source
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: list
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: list
+      image: alpine
+      workingDir: $(workspaces.source.path)
+      command:
+        - /bin/sh
+      args:
+        - "-c"
+        - ls ./source
+    - name: readme
+      image: alpine
+      workingDir: $(workspaces.source.path)
+      command:
+        - /bin/sh
+      args:
+        - "-c"
+        - cat ./source/README.md
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: remove-source
+      image: registry.access.redhat.com/ubi8/ubi
+      command:
+        - /bin/bash
+      args:
+        - "-c"
+        - "rm -rf $(workspaces.source.path)/source"
+    - name: message
+      image: registry.access.redhat.com/ubi8/ubi
+      command:
+        - /bin/bash
+      args:
+        - "-c"
+        - echo All files were deleted
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: clone-and-list
+spec:
+  workspaces:
+    - name: codebase
+  tasks:
+    - name: clone
+      taskRef:
+        name: clone
+      workspaces:
+        - name: source
+          workspace: codebase
+    - name: list
+      taskRef:
+        name: list
+      workspaces:
+        - name: source
+          workspace: codebase
+      runAfter:
+        - clone
+  finally:
+    - name: clean
+      taskRef:
+        name: cleanup
+      workspaces:
+        - name: source
+          workspace: codebase
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: clone-and-ls-pr
+spec:
+  pipelineRef:
+    name: clone-and-list
+  workspaces:
+    - name: codebase
+      persistentVolumeClaim:
+        claimName: tekton-pvc
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: tekton-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/mnt/data"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: tekton-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/mnt/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tekton-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi

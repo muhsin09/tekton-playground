@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: list
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: list
+      image: alpine
+      workingDir: $(workspaces.source.path)
+      command:
+        - /bin/sh
+      args:
+        - "-c"
+        - ls ./source

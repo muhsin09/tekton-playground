@@ -1,0 +1,78 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: sleep-and-log
+spec:
+  params:
+    - name: task-name
+      type: string
+    - name: time
+      type: string
+      default: "1"
+  steps:
+    - name: init
+      image: registry.access.redhat.com/ubi8/ubi-minimal
+      command:
+        - /bin/bash
+      args:
+        - "-c"
+        - "echo [$(date '+%d/%m/%Y %T')] - Task $(params.task-name) Started"
+    - name: sleep
+      image: registry.access.redhat.com/ubi8/ubi-minimal
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - sleep $(params.time)
+    - name: log
+      image: registry.access.redhat.com/ubi8/ubi-minimal
+      command:
+        - /bin/bash
+      args:
+        - "-c"
+        - "echo [$(date '+%d/%m/%Y %T')] - Task $(params.task-name) Completed"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ordered-tasks
+spec:
+  tasks:
+    - name: first
+      params:
+        - name: task-name
+          value: A
+        - name: time
+          value: "2"
+      taskRef:
+        name: sleep-and-log
+    - name: second
+      params:
+        - name: task-name
+          value: B
+      taskRef:
+        name: sleep-and-log
+    - name: third
+      params:
+        - name: task-name
+          value: C
+        - name: time
+          value: "3"
+      taskRef:
+        name: sleep-and-log
+      runAfter:
+        - first
+        - second
+    - name: fourth
+      params:
+        - name: task-name
+          value: D
+      taskRef:
+        name: sleep-and-log
+      runAfter:
+        - third
+
+
+# $ kubectl apply -f ./log-and-sleep.yaml
+# $ tkn pipeline start ordered-tasks --showlog
